@@ -73,6 +73,7 @@ impl DiskProvisionerModule for Repart {
                                 Partition {
                                     label,
                                     mount_point,
+                                    format,
                                     encrypt,
                                     ..
                                 },
@@ -80,6 +81,7 @@ impl DiskProvisionerModule for Repart {
                     )| {
                         let OutputPartition { node, .. } =
                             repart_out.partitions.get(i).expect("part doesn't exist");
+                        let fstype = format.map(|fs| format!("{fs:?}").to_ascii_lowercase());
 
                         mount_point.into_iter().filter_map(move |mount_point| {
                             if mount_point.is_empty() {
@@ -95,6 +97,7 @@ impl DiskProvisionerModule for Repart {
                                 partition: PathBuf::from(node),
                                 mountpoint: PathBuf::from(fst),
                                 options: snd.unwrap_or_default(),
+                                fstype: fstype.clone(),
                                 encryption_type: match encrypt {
                                     EncryptOption::Off => None,
                                     EncryptOption::KeyFile => Some(EncryptionOption::KeyFile),

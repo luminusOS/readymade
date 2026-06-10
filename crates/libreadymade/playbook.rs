@@ -56,7 +56,7 @@ fn mounts_to_container(tempdir: &tempfile::TempDir, mounts: &Mounts) -> Result<C
                 target: mount.mountpoint.clone(),
                 flags: MountFlags::empty(),
                 data: (mount.options != "defaults").then(|| mount.options.clone()),
-                fstype: None,
+                fstype: mount.fstype.clone(),
             },
             mount.partition.clone(),
         );

@@ -29,6 +29,8 @@ pub struct Mount {
     pub mountpoint: PathBuf,
     /// Raw text `mountopts`
     pub options: String,
+    /// Filesystem type, if known from the repart template.
+    pub fstype: Option<String>,
     /// Encryption type of the partition, if any
     pub encryption_type: Option<EncryptionOption>,
     /// Label of the partition
@@ -45,6 +47,7 @@ impl Mount {
         partition: PathBuf,
         mountpoint: PathBuf,
         options: String,
+        fstype: Option<String>,
         encryption_type: Option<EncryptionOption>,
         label: Option<String>,
     ) -> Self {
@@ -52,6 +55,7 @@ impl Mount {
             partition,
             mountpoint,
             options,
+            fstype,
             encryption_type,
             label,
             gpt_type: OnceCell::default(),
@@ -180,16 +184,17 @@ impl Mount {
             &self.partition
         };
 
-        sys_mount::Mount::builder()
-            .data(&self.options)
-            .mount(source, &target)
-            .with_context(|| {
-                format!(
-                    "cannot mount from {:?} to {:?}",
-                    source.display(),
-                    target.display()
-                )
-            })?;
+        let mut builder = sys_mount::Mount::builder().data(&self.options);
+        if let Some(fstype) = &self.fstype {
+            builder = builder.fstype(fstype.as_str());
+        }
+        builder.mount(source, &target).with_context(|| {
+            format!(
+                "cannot mount from {:?} to {:?}",
+                source.display(),
+                target.display()
+            )
+        })?;
 
         Ok(())
     }
