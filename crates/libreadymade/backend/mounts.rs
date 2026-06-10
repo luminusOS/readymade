@@ -254,12 +254,16 @@ impl Mounts {
 
     /// Mount all the targets in the specified order.
     pub fn mount_all(&self, root: &Path, passphrase: Option<&str>) -> Result<()> {
-        self.0.iter().try_for_each(|m| m.mount(root, passphrase))
+        let mut mounts = self.clone();
+        mounts.sort_mounts();
+        mounts.0.iter().try_for_each(|m| m.mount(root, passphrase))
     }
 
     /// Unmount all the targets in reverse.
     pub fn umount_all(&self, root: &Path) -> std::io::Result<()> {
-        self.0.iter().rev().try_for_each(|m| m.umount(root))
+        let mut mounts = self.clone();
+        mounts.sort_mounts();
+        mounts.0.iter().rev().try_for_each(|m| m.umount(root))
     }
 
     /// Get the ESP partition if it exists

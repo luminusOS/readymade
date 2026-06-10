@@ -20,7 +20,10 @@ use crate::{
     disks::Disk,
     prelude::*,
     stage,
-    util::{self, sys::check_uefi},
+    util::{
+        self,
+        sys::{check_uefi, settle_blockdev_partitions},
+    },
 };
 
 pub static IPC_CHANNEL: OnceLock<Mutex<IpcSender<InstallationMessage>>> = OnceLock::new();
@@ -522,8 +525,8 @@ impl Playbook {
             std::fs::write(repart_out_path, &repart_cmd.stdout)?;
         }
 
-        // todo: wait for systemd 256 or genfstab magic
         tracing::debug!("systemd-repart finished");
+        settle_blockdev_partitions(blockdev);
         Ok(serde_json::from_slice(&repart_cmd.stdout)?)
     }
 }

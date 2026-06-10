@@ -46,6 +46,8 @@ pub struct Playbook {
 // TODO: handle luks lol
 fn mounts_to_container(tempdir: &tempfile::TempDir, mounts: &Mounts) -> Result<Container> {
     let mut container = Container::new(tempdir.path().to_owned());
+    let mut mounts = mounts.clone();
+    mounts.sort_mounts();
 
     for mount in &mounts.0 {
         dbg!(&mount.mountpoint, &mount.partition);

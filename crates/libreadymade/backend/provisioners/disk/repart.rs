@@ -3,7 +3,10 @@ use repart::{Config, EncryptOption, Output, OutputPartition, Partition};
 use file_guard::Lock;
 use std::{collections::BTreeMap, process::Stdio};
 
-use crate::{backend::provisioners::disk::DiskProvisionerModule, prelude::*};
+use crate::{
+    backend::{provisioners::disk::DiskProvisionerModule, util::sys::settle_blockdev_partitions},
+    prelude::*,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SystemdRepartData {
@@ -22,7 +25,7 @@ impl SystemdRepartData {
         for entry in std::fs::read_dir(cfg_path)? {
             let entry = entry?;
             let path = entry.path();
-            if !path.is_file() {
+            if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("conf") {
                 continue;
             }
             let file_config = std::fs::read_to_string(&path)?;
@@ -168,7 +171,7 @@ fn systemd_repart(
         );
     }
 
-    // todo: wait for systemd 256 or genfstab magic
     tracing::debug!("systemd-repart finished");
+    settle_blockdev_partitions(blockdev);
     Ok(serde_json::from_slice(&repart_cmd.stdout)?)
 }

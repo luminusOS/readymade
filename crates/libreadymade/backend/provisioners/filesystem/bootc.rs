@@ -21,6 +21,7 @@ impl Bootc {
         let imgref = &self.imgref;
         let target_imgref = &self.target_imgref;
         let enforce_sigpolicy = &self.enforce_sigpolicy;
+        let kargs = &self.kargs;
         let args = &self.args;
 
         tracing::info!(imgref=?self.imgref, "running bootc install to-filesystem");
@@ -31,7 +32,7 @@ impl Bootc {
                 .flat_map(|data| data.cmdline_opts.iter().flat_map(|opt| ["--karg", opt])),
             [target_root],
             (target_imgref.iter()).flat_map(|a| ["--target-imgref", a]),
-            args.iter().flat_map(|e| ["--karg", e]),
+            kargs.iter().flat_map(|e| ["--karg", e]),
             enforce_sigpolicy.then_some("--enforce-container-sigpolicy"),
             args.iter(),
         ] => |cmd| bail!("`bootc install to-filesystem` failed: {:?}", cmd.code()));
