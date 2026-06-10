@@ -19,6 +19,7 @@ impl PostInstallModule for Language {
         // shadowing here because format!() has shit lifetime
         let lang = lang.as_bytes();
         // `LOCALE.CONF(5)`: /etc/locale.conf
+        std::fs::create_dir_all("/etc")?;
         std::fs::write(
             "/etc/locale.conf",
             format_bytes::format_bytes!(
