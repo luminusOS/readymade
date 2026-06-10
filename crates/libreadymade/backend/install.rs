@@ -316,20 +316,33 @@ impl Playbook {
         else {
             unreachable!()
         };
+        let tmpdir = crate::backend::bootc::target_backed_tmpdir(target_root)?;
 
         tracing::info!(?imgref, "running bootc install to-filesystem");
 
-        crate::cmd!("bootc" [
-            ["install", "to-filesystem", "--source-imgref", imgref],
-            (cryptdata.iter())
-                .flat_map(|data| data.cmdline_opts.iter().flat_map(|opt| ["--karg", opt])),
-            ["--karg=rhgb", "--karg=quiet", "--karg=splash"],
-            [target_root],
-            (bootc_target_imgref.iter()).flat_map(|a| ["--target-imgref", a]),
-            bootc_kargs.iter().flat_map(|e| ["--karg", e]),
-            bootc_enforce_sigpolicy.then_some("--enforce-container-sigpolicy"),
-            bootc_args.iter(),
-        ] => |cmd| bail!("`bootc install to-filesystem` failed: {:?}", cmd.code()));
+        let cmd = Command::new("bootc")
+            .env("TMPDIR", &tmpdir)
+            .args(["install", "to-filesystem", "--source-imgref", imgref])
+            .args(cryptdata.iter().flat_map(|data| {
+                data.cmdline_opts
+                    .iter()
+                    .flat_map(|opt| ["--karg", opt.as_str()])
+            }))
+            .args(["--karg=rhgb", "--karg=quiet", "--karg=splash"])
+            .arg(target_root)
+            .args(
+                bootc_target_imgref
+                    .iter()
+                    .flat_map(|a| ["--target-imgref", a.as_str()]),
+            )
+            .args(bootc_kargs.iter().flat_map(|e| ["--karg", e.as_str()]))
+            .args(bootc_enforce_sigpolicy.then_some("--enforce-container-sigpolicy"))
+            .args(bootc_args)
+            .status()
+            .context("fail to execute bootc")?;
+        if !cmd.success() {
+            bail!("`bootc install to-filesystem` failed: {:?}", cmd.code());
+        }
 
         Ok(())
     }

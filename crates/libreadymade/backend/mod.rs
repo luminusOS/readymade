@@ -1,3 +1,4 @@
+pub mod bootc;
 pub mod mounts;
 pub mod postinstall;
 pub mod provisioners;
