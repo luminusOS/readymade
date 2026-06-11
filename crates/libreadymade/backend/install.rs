@@ -316,12 +316,9 @@ impl Playbook {
         else {
             unreachable!()
         };
-        let containers_conf = crate::backend::bootc::target_backed_containers_conf(target_root)?;
-
         tracing::info!(?imgref, "running bootc install to-filesystem");
 
         let cmd = Command::new("bootc")
-            .env("CONTAINERS_CONF_OVERRIDE", containers_conf.path())
             .args(["install", "to-filesystem", "--source-imgref", imgref])
             .args(cryptdata.iter().flat_map(|data| {
                 data.cmdline_opts

@@ -303,7 +303,7 @@ pub fn generate_fstab(prefix: &str) -> Result<FsTable> {
 
             let uuid = block_list
                 .iter()
-                .find(|dev| dev.fullname == device_spec_og)
+                .find(|dev| dev.fullname == std::path::PathBuf::from(&device_spec_og))
                 .and_then(|dev| dev.uuid.as_ref())
                 .ok_or_else(|| {
                     FsTableError::InvalidEntry(format!(
