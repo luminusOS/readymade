@@ -9,6 +9,7 @@ use enum_dispatch::enum_dispatch;
 use fstab::Fstab;
 use grub2::GRUB2;
 use initial_setup::InitialSetup;
+use keyboard::Keyboard;
 use language::Language;
 use prepare_fedora::PrepareFedora;
 use reinstall_kernel::ReinstallKernel;
@@ -24,6 +25,7 @@ pub mod efi_stub;
 pub mod fstab;
 pub mod grub2;
 pub mod initial_setup;
+pub mod keyboard;
 pub mod language;
 pub mod prepare_fedora;
 pub mod reinstall_kernel;
@@ -60,6 +62,7 @@ pub enum Module {
     PrepareFedora,
     EfiStub,
     InitialSetup,
+    Keyboard,
     Language,
     CryptSetup,
     Script,

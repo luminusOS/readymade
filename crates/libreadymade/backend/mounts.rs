@@ -204,8 +204,15 @@ impl Mount {
         let target = (self.mountpoint.strip_prefix("/")).unwrap_or(&self.mountpoint);
         let target = root.join(target);
 
-        umount(&target)?;
-        Ok(())
+        match umount(&target) {
+            Ok(()) => Ok(()),
+            // Some filesystem provisioners (notably bootc/bootupd) may
+            // unmount auxiliary target filesystems themselves. Treat an
+            // already-unmounted target as success so cleanup remains
+            // idempotent and the remaining mounts are still released.
+            Err(nix::errno::Errno::EINVAL | nix::errno::Errno::ENOENT) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub fn get_gpt_type(&self) -> gpt::partition_types::Type {

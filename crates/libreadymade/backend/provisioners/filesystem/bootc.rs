@@ -50,29 +50,38 @@ impl Bootc {
         Ok(())
     }
 
-    // This cleans up any folder that is not on the bootc whitelist from a bootc-installed filesystem
-    fn bootc_cleanup(mountpoint: &Path) -> Result<()> {
-        _ = std::fs::read_dir(mountpoint)?.try_for_each(|f| {
-            let f = f?;
-            match f.file_name().as_encoded_bytes() {
-                b"boot" | b"ostree" | b"efi" | b".bootc-aleph.json" => {}
-                _ => {
-                    _ = if f.file_type()?.is_dir() {
-                        std::fs::remove_dir_all(f.path())
-                    } else {
-                        std::fs::remove_file(f.path())
-                    }
-                }
-            }
-            std::io::Result::Ok(())
-        });
+    /// Complete an installation started with `bootc install to-filesystem
+    /// --skip-finalize`.
+    ///
+    /// The official finalizer commits changes made by post-install modules
+    /// inside the target checkout before pruning its temporary files. Deleting
+    /// the checkout by hand loses changes such as `/etc/locale.conf`.
+    fn bootc_finalize(mountpoint: &Path) -> Result<()> {
+        let status = Self::bootc_finalize_command(mountpoint)
+            .status()
+            .context("failed to execute `bootc install finalize`")?;
+        if !status.success() {
+            bail!("`bootc install finalize` failed: {:?}", status.code());
+        }
         Ok(())
+    }
+
+    fn bootc_finalize_command(mountpoint: &Path) -> Command {
+        let mut command = Command::new("bootc");
+        command.args(["install", "finalize"]).arg(mountpoint);
+        command
     }
 }
 
 impl FileSystemProvisionerModule for Bootc {
     fn run(&self, playbook: &crate::playbook::Playbook, mounts: &Mounts) -> Result<()> {
-        let tmproot = tempfile::tempdir()?;
+        // bootc overlays /tmp with a private tmpfs while preparing an external
+        // source image. A target mounted below /tmp would become hidden, and
+        // the subsequent unmount would fail with EINVAL. /run remains visible
+        // for the complete bootc invocation.
+        let tmproot = tempfile::Builder::new()
+            .prefix("readymade-bootc-")
+            .tempdir_in("/run")?;
         let bootc_rootfs_mountpoint = tmproot.path();
         mounts.mount_all(
             bootc_rootfs_mountpoint,
@@ -84,23 +93,49 @@ impl FileSystemProvisionerModule for Bootc {
 
         self.bootc_copy(bootc_rootfs_mountpoint, generate_cryptdata(mounts)?)?;
 
-        mounts.umount_all(bootc_rootfs_mountpoint)?;
+        mounts
+            .umount_all(bootc_rootfs_mountpoint)
+            .wrap_err("unmounting target filesystems after bootc")?;
         Ok(())
     }
 
     fn cleanup(&self, playbook: &crate::playbook::Playbook, mounts: &Mounts) -> Result<()> {
-        let tmproot = tempfile::tempdir()?;
+        let tmproot = tempfile::Builder::new()
+            .prefix("readymade-bootc-cleanup-")
+            .tempdir_in("/run")?;
         let bootc_rootfs_mountpoint = tmproot.path();
-        mounts.mount_all(
-            bootc_rootfs_mountpoint,
-            playbook
-                .encryption
-                .as_ref()
-                .map(|e| e.encryption_key.as_str()),
-        )?;
-        Self::bootc_cleanup(bootc_rootfs_mountpoint)?;
-        crate::cmd!("sync" => |_| bail!("`sync` failed"));
-        crate::cmd!("umount" [["-R"], [bootc_rootfs_mountpoint]] => |_| bail!("umount -R {bootc_rootfs_mountpoint:?} failed"));
+        mounts
+            .mount_all(
+                bootc_rootfs_mountpoint,
+                playbook
+                    .encryption
+                    .as_ref()
+                    .map(|e| e.encryption_key.as_str()),
+            )
+            .wrap_err("mounting target filesystems for bootc cleanup")?;
+        Self::bootc_finalize(bootc_rootfs_mountpoint)?;
+        // Finalize may already have remounted or detached the target. The
+        // Mount abstraction treats EINVAL/ENOENT as an idempotent success.
+        mounts
+            .umount_all(bootc_rootfs_mountpoint)
+            .wrap_err("unmounting target filesystems after bootc finalize")?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Bootc;
+    use std::ffi::OsStr;
+    use std::path::Path;
+
+    #[test]
+    fn finalizes_the_customized_target_with_bootc() {
+        let command = Bootc::bootc_finalize_command(Path::new("/mnt/target"));
+        assert_eq!(command.get_program(), OsStr::new("bootc"));
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            ["install", "finalize", "/mnt/target"].map(OsStr::new)
+        );
     }
 }

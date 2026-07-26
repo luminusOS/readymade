@@ -50,7 +50,6 @@ fn mounts_to_container(tempdir: &tempfile::TempDir, mounts: &Mounts) -> Result<C
     mounts.sort_mounts();
 
     for mount in &mounts.0 {
-        dbg!(&mount.mountpoint, &mount.partition);
         container.add_mount(
             MountTarget {
                 target: mount.mountpoint.clone(),
@@ -135,10 +134,13 @@ impl Playbook {
         // the fstab generator to be correct, IF we're using encryption
         //
         // todo: Unfuck this
-        let mut container = mounts_to_container(&tempdir, mounts)?;
+        let mut container =
+            mounts_to_container(&tempdir, mounts).wrap_err("preparing target chroot")?;
         // let fstab = mounts.generate_fstab()?;
         // tiffin will run `nix::unistd::chdir("/")` when entering the container, so we can use `sysroot as above`
-        container.run(|| self.inner_sys_setup(mounts))??;
+        container
+            .run(|| self.inner_sys_setup(mounts))
+            .wrap_err("entering or leaving target chroot")??;
 
         // Let's remove the lockfile now that we're done
         std::fs::remove_file(lockfile_path)
