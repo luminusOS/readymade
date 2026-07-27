@@ -11,9 +11,9 @@ impl PostInstallModule for InitialSetup {
         "InitialSetup"
     }
 
-    fn run(&self, _context: &Context) -> Result<()> {
+    fn run(&self, context: &Context) -> Result<()> {
         // This triggers whatever the heck (e.g. Taidan) during next boot
-        std::fs::File::create("/.unconfigured")?;
+        std::fs::File::create(context.root.join(".unconfigured"))?;
         Ok(())
     }
 }

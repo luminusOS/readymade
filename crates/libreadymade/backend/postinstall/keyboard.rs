@@ -15,7 +15,7 @@ impl PostInstallModule for Keyboard {
         "Keyboard"
     }
 
-    fn run(&self, _context: &Context) -> Result<()> {
+    fn run(&self, context: &Context) -> Result<()> {
         if !valid_component(&self.layout)
             || self
                 .variant
@@ -25,10 +25,10 @@ impl PostInstallModule for Keyboard {
             bail!("invalid XKB layout or variant");
         }
 
-        let directory = "/etc/X11/xorg.conf.d";
-        std::fs::create_dir_all(directory)?;
+        let directory = context.root.join("etc/X11/xorg.conf.d");
+        std::fs::create_dir_all(&directory)?;
         std::fs::write(
-            format!("{directory}/00-keyboard.conf"),
+            directory.join("00-keyboard.conf"),
             xorg_config(&self.layout, self.variant.as_deref()),
         )?;
         Ok(())

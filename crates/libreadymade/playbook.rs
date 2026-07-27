@@ -169,6 +169,7 @@ impl Playbook {
         let context = crate::backend::postinstall::Context {
             destination_disk: self.destination_disk.clone(),
             uefi: check_uefi(),
+            root: crate::backend::postinstall::resolve_target_root(Path::new("/"))?,
             // uefi: if self.installation_type.is_chromebook_install() {
             //     true
             // } else {

@@ -53,9 +53,9 @@ impl Bootc {
     /// Complete an installation started with `bootc install to-filesystem
     /// --skip-finalize`.
     ///
-    /// The official finalizer commits changes made by post-install modules
-    /// inside the target checkout before pruning its temporary files. Deleting
-    /// the checkout by hand loses changes such as `/etc/locale.conf`.
+    /// Post-install modules modify the active OSTree deployment selected by
+    /// `postinstall::resolve_target_root`; the official finalizer then completes
+    /// bootloader and deployment bookkeeping without discarding those changes.
     fn bootc_finalize(mountpoint: &Path) -> Result<()> {
         let status = Self::bootc_finalize_command(mountpoint)
             .status()

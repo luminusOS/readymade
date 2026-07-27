@@ -13,10 +13,11 @@ impl PostInstallModule for Language {
         "Language"
     }
 
-    fn run(&self, _context: &Context) -> Result<()> {
+    fn run(&self, context: &Context) -> Result<()> {
         // `LOCALE.CONF(5)`: /etc/locale.conf
-        std::fs::create_dir_all("/etc")?;
-        std::fs::write("/etc/locale.conf", locale_conf(&self.lang))?;
+        let etc = context.root.join("etc");
+        std::fs::create_dir_all(&etc)?;
+        std::fs::write(etc.join("locale.conf"), locale_conf(&self.lang))?;
         Ok(())
     }
 }
